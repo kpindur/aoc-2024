@@ -1,21 +1,52 @@
+use std::collections::HashMap;
 use std::error::Error;
-use std::fs::File;
-use std::io::{BufRead, BufReader};
 
 type Int = i32;
 
-pub fn load_data(path: &str) -> Result<Vec<Int>, Box<dyn Error>> {
-    let file = File::open(path)?;
-    let reader = BufReader::new(file);
+type RuleType = Vec<(Int, Int)>;
+type LineType = Vec<Vec<Int>>;
 
+pub fn load_data(path: &str) -> Result<(RuleType, LineType), Box<dyn Error>> {
+    let content = std::fs::read_to_string(path)?;
 
-    return Ok(Vec::new());
+    let (rules, ordering) = content.split_once("\n\n").unwrap();
+    let rules = rules.lines()
+        .map(|line| {
+            let (a, b) = line.split_once('|').unwrap();
+            (a.parse::<Int>().expect("Failed to parse first value!"), b.parse::<Int>().expect("Failed to parse second value!"))
+        })
+        .collect::<Vec<(Int, Int)>>();
+    let ordering = ordering.lines()
+        .map(|line| line.split(',')
+            .map(|v| v.parse::<Int>().expect("Failed to parse values!"))
+            .collect::<Vec<Int>>()
+        )
+        .collect::<Vec<Vec<Int>>>();
+
+    return Ok((rules, ordering));
 }
 
 pub fn part1(path: &str) -> Result<Int, Box<dyn Error>> {
-    let _ = load_data(path)?;
+    let (rules, lines) = load_data(path)?;
 
-    let result = 0;
+    let mut results = Vec::new();
+    
+    for line in lines {
+        let pages: HashMap<Int, usize> = line.iter().enumerate()
+            .map(|(i, &page)| (page, i))
+            .collect();
+
+        if rules.iter().all(|(first, second)| {
+            match (pages.get(first), pages.get(second)) {
+                (Some(&pos1), Some(&pos2)) => pos1 < pos2,
+                _ => true
+            }
+        }) {
+            results.push(line);
+        }
+    }
+
+    let result = results.iter().map(|result| result[&result.len() / 2]).sum();
 
     return Ok(result);
 }
@@ -35,7 +66,7 @@ mod test{
 
         let result = part1(prefix.join("test.dat").to_str().expect("File not found!"))?;
 
-        assert_eq!(0, result);
+        assert_eq!(143, result);
 
         return Ok(());
     }
